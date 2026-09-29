@@ -536,10 +536,11 @@ const lon = parts[1];
     document.getElementById('cropName').textContent = data.predicted_crop;
     document.getElementById('confBadge').textContent = data.confidence_pct + '%';
 
-    const isNoMatch = !data.sowing_date || data.predicted_crop === 'No confident crop match';
+    const hasLifecycle = data.sowing_date && data.peak_date && data.harvest_date &&
+      Number.isInteger(data.sowing_idx) && Number.isInteger(data.peak_idx) && Number.isInteger(data.harvest_idx);
     const lifecycleEl = document.querySelector('.lifecycle');
-    lifecycleEl.style.display = isNoMatch ? 'none' : 'flex';
-    if (isNoMatch) {
+    lifecycleEl.style.display = hasLifecycle ? 'flex' : 'none';
+    if (!hasLifecycle) {
       document.getElementById('sowDate').textContent = '—';
       document.getElementById('peakDate').textContent = '—';
       document.getElementById('harvDate').textContent = '—';
@@ -601,14 +602,14 @@ const lon = parts[1];
 
     // Sowing / peak / harvest come from the backend (notebook logic)
     const lifecyclePoints = new Map();
-    if (!isNoMatch) {
+    if (hasLifecycle) {
       lifecyclePoints.set(data.sowing_idx, ['sowing']);
       lifecyclePoints.set(data.peak_idx, ['peak']);
       lifecyclePoints.set(data.harvest_idx, ['harvest']);
     }
 
     const durationBadge = document.getElementById('durationBadge');
-    durationBadge.innerHTML = isNoMatch ? '' :
+    durationBadge.innerHTML = !hasLifecycle ? '' :
       `<span class="duration-badge">Lifecycle: ${data.duration_days} days</span>`;
 
     const pointColors = chartSmooth.map((_, i) => {

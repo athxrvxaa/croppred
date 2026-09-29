@@ -18,7 +18,6 @@ import pandas as pd
 from backend.lifecycle_logic import FEATURE_COLS, candidate_lifecycles
 
 MODEL_PATH = Path(__file__).resolve().parents[1] / "model_weights" / "rf_model.joblib"
-MIN_CONFIDENCE = 0.50          # below this -> "No confident crop match"
 MAX_GAP_DAYS = 60              # lifecycle must contain / be within this of the query date
 MIN_OBSERVATIONS = 8
 
@@ -63,8 +62,9 @@ def predict_from_series(df: pd.DataFrame, ref_date, ground_truth: str | None = N
     dates = pd.to_datetime(df["Date"].values.astype("datetime64[ns]"))
     ndvi = df["NDVI"].values.astype(float)
 
+    detected = candidate_lifecycles(dates, ndvi)
     cands = []
-    for c in candidate_lifecycles(dates, ndvi):
+    for c in detected:
         if not c["record"]["Is_Valid"] or c["features"] is None:
             continue
         gap = _gap_days(c["record"], q)
@@ -78,19 +78,35 @@ def predict_from_series(df: pd.DataFrame, ref_date, ground_truth: str | None = N
         c.update(gap=gap, proba=proba, conf=float(proba.max()))
         cands.append(c)
 
-    # for the chart when nothing matches, show the smoothing of the closest-looking config
-    fallback = candidate_lifecycles(dates, ndvi, crops=["Paddy"])
-    fb_smooth = fallback[0]["smoothed"] if fallback else pd.Series(ndvi).rolling(3, center=True, min_periods=1).mean().values
-    if not fallback:
-        fb_smooth = pd.Series(ndvi).rolling(3, center=True, min_periods=1).mean().values
-
     gt = (ground_truth or "").strip() or None
-    cands = [c for c in cands if c["conf"] >= MIN_CONFIDENCE]
     if not cands:
-        return {"predicted_crop": "No confident crop match", "confidence_pct": 0,
-                "sowing_date": None, "peak_date": None, "harvest_date": None, "duration_days": None,
-                "top3": [], "ground_truth": gt, "correct": False,
-                **_series_payload(dates, ndvi, fb_smooth)}
+        # Preserve the nearest detected lifecycle for display even when it
+        # fails validation, is outside the date window, or the RF disagrees.
+        fallback = min(
+            detected,
+            key=lambda c: (_gap_days(c["record"], q), not c["record"]["Is_Valid"]),
+            default=None,
+        )
+        payload = {
+            "predicted_crop": "No confident crop match", "confidence_pct": 0,
+            "sowing_date": None, "peak_date": None, "harvest_date": None,
+            "duration_days": None, "sowing_idx": None, "peak_idx": None,
+            "harvest_idx": None, "top3": [], "ground_truth": gt, "correct": False,
+        }
+        if fallback:
+            rec, cycle = fallback["record"], fallback["cycle"]
+            payload.update({
+                "sowing_date": _d(rec["Sowing_Date"]),
+                "peak_date": _d(rec["Peak_Date"]),
+                "harvest_date": _d(rec["Harvest_Date"]),
+                "duration_days": int(rec["Duration_Days"]),
+                "sowing_idx": cycle["sowing"], "peak_idx": cycle["peak"],
+                "harvest_idx": cycle["harvest"],
+            })
+            smoothed = fallback["smoothed"]
+        else:
+            smoothed = pd.Series(ndvi).rolling(3, center=True, min_periods=1).mean().values
+        return {**payload, **_series_payload(dates, ndvi, smoothed)}
 
     best = sorted(cands, key=lambda c: (c["gap"], -c["conf"]))[0]
     rec, cyc = best["record"], best["cycle"]

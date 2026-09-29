@@ -28,7 +28,7 @@ DEFAULT_CFG = {"smooth": 3, "max_cycles": 1, "search_months": 8, "use_prominence
 RULES = {
     "Onion":     {"sow_months": [5, 6, 7, 8, 9, 10, 11, 12, 1], "harv_months": [1, 2, 3, 4, 5, 10, 11, 12], "min_dur": 85,  "max_dur": 180, "min_drop": 0.2,  "min_rise": 0.15},
     "Paddy":     {"sow_months": [5, 6, 7, 8],                   "harv_months": [9, 10, 11, 12, 1],          "min_dur": 90,  "max_dur": 180, "min_drop": 0.2,  "min_rise": 0.15},
-    "Sugarcane": {"sow_months": [1, 2, 3, 4],                   "harv_months": [10, 11, 12, 1],             "min_dur": 180, "max_dur": 365, "min_drop": 0.09, "min_rise": 0.12},
+    "Sugarcane": {"sow_months": [10,11 ,12,1, 2, 3, 4],         "harv_months": [10, 11, 12, 1, 2, 3],       "min_dur": 180, "max_dur": 365, "min_drop": 0.09, "min_rise": 0.12},
     "Cotton":    {"sow_months": [5, 6, 7, 8, 9],                "harv_months": [11, 12, 1, 4],              "min_dur": 65,  "max_dur": 230, "min_drop": 0.15, "min_rise": 0.10},
 }
 
